@@ -30,10 +30,21 @@ jobs:
           class ViewController: UIViewController {
               override func viewDidLoad() {
                   super.viewDidLoad()
-                  let webView = WKWebView(frame: view.bounds)
-                  webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                  
+                  let webView = WKWebView()
+                  webView.translatesAutoresizingMaskIntoConstraints = false
                   webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+                  
                   view.addSubview(webView)
+                  
+                  // Pin to SAFE AREA — prevents overlap with status bar
+                  NSLayoutConstraint.activate([
+                      webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                      webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                      webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                      webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+                  ])
+                  
                   if let url = URL(string: "https://gemini.google.com/") {
                       webView.load(URLRequest(url: url))
                   }
@@ -120,6 +131,8 @@ jobs:
               <string>UIInterfaceOrientationLandscapeRight</string>
               <string>UIInterfaceOrientationPortraitUpsideDown</string>
             </array>
+            <key>UIViewControllerBasedStatusBarAppearance</key>
+            <true/>
           </dict>
           </plist>
           EOF
