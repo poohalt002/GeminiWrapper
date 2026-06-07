@@ -1,137 +1,69 @@
-name: Build GeminiWrapper
-
+name: BuildGemini
 on: workflow_dispatch
-
 jobs:
   build:
     runs-on: macos-latest
     steps:
-      - name: Build IPA
-        run: |
-          set -e
-          set -x
-          
-          mkdir -p Payload/GeminiWrapper.app
-          
-          cat > app.swift <<'SWIFT'
-          import UIKit
-          import WebKit
-          
-          class ViewController: UIViewController, WKScriptMessageHandler {
-              var webView: WKWebView!
-              var statusBarIsDark = false
-              
-              override var preferredStatusBarStyle: UIStatusBarStyle {
-                  return statusBarIsDark ? .lightContent : .darkContent
-              }
-              
-              override func viewDidLoad() {
-                  super.viewDidLoad()
-                  
-                  let config = WKWebViewConfiguration()
-                  config.userContentController.add(self, name: "themeHandler")
-                  
-                  let js = """
-                  (function() {
-                      function sample() {
-                          var color = '255,255,255';
-                          var el = null;
-                          try {
-                              el = document.elementFromPoint(window.innerWidth / 2, 2);
-                          } catch(e) {}
-                          if (!el) el = document.body || document.documentElement;
-                          
-                          var bg = window.getComputedStyle(el).backgroundColor;
-                          var m = bg.match(/(\\d+)[,\\s]+(\\d+)[,\\s]+(\\d+)/);
-                          if (m) {
-                              color = m[1] + ',' + m[2] + ',' + m[3];
-                          } else {
-                              var parent = el.parentElement;
-                              while (parent) {
-                                  var pbg = window.getComputedStyle(parent).backgroundColor;
-                                  var pm = pbg.match(/(\\d+)[,\\s]+(\\d+)[,\\s]+(\\d+)/);
-                                  if (pm) {
-                                      color = pm[1] + ',' + pm[2] + ',' + pm[3];
-                                      break;
-                                  }
-                                  parent = parent.parentElement;
-                              }
-                          }
-                          if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.themeHandler) {
-                              window.webkit.messageHandlers.themeHandler.postMessage(color);
-                          }
-                      }
-                      sample();
-                      setInterval(sample, 200);
-                      var observer = new MutationObserver(sample);
-                      observer.observe(document.documentElement, { attributes: true, childList: true, subtree: true });
-                  })();
-                  """
-                  
-                  let userScript = WKUserScript(source: js, injectionTime: .atDocumentEnd, forMainFrameOnly: false)
-                  config.userContentController.addUserScript(userScript)
-                  
-                  webView = WKWebView(frame: .zero, configuration: config)
-                  webView.translatesAutoresizingMaskIntoConstraints = false
-                  webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
-                  
-                  view.addSubview(webView)
-                  NSLayoutConstraint.activate([
-                      webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                      webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                      webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                      webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-                  ])
-                  
-                  if let url = URL(string: "https://gemini.google.com/") {
-                      webView.load(URLRequest(url: url))
-                  }
-              }
-              
-              func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-                  if let rgb = message.body as? String {
-                      let components = rgb.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-                      if components.count == 3 {
-                          let r = CGFloat(components[0]) / 255.0
-                          let g = CGFloat(components[1]) / 255.0
-                          let b = CGFloat(components[2]) / 255.0
-                          
-                          view.backgroundColor = UIColor(red: r, green: g, blue: b, alpha: 1.0)
-                          
-                          let luminance = (0.299 * CGFloat(components[0]) + 0.587 * CGFloat(components[1]) + 0.114 * CGFloat(components[2])) / 255.0
-                          let newIsDark = luminance < 0.5
-                          if newIsDark != statusBarIsDark {
-                              statusBarIsDark = newIsDark
-                              setNeedsStatusBarAppearanceUpdate()
-                          }
-                      }
-                  }
-              }
+      - run: |
+          set -ex
+          mkdir -p Payload/Gemini.app
+          cat > app.swift <<'EOF'
+          import UIKit,WebKit
+          class VC:UIViewController,WKScriptMessageHandler{
+            var wv:WKWebView!;var sb=false
+            override var preferredStatusBarStyle:UIStatusBarStyle{return sb ? .lightContent:.darkContent}
+            override func viewDidLoad(){
+              super.viewDidLoad()
+              let c=WKWebViewConfiguration()
+              c.userContentController.add(self,name:"t")
+              let j="(function(){function s(){var c='255,255,255',e=null;try{e=document.elementFromPoint(innerWidth/2,2)}catch(x){}if(!e)e=document.body||document.documentElement;var b=getComputedStyle(e).backgroundColor,m=b.match(/(\\d+)[,\\s]+(\\d+)[,\\s]+(\\d+)/);if(m)c=m[1]+','+m[2]+','+m[3];else{var p=e.parentElement;while(p){var x=getComputedStyle(p).backgroundColor,n=x.match(/(\\d+)[,\\s]+(\\d+)[,\\s]+(\\d+)/);if(n){c=n[1]+','+n[2]+','+n[3];break}p=p.parentElement}}if(webkit&&webkit.messageHandlers&&webkit.messageHandlers.t)webkit.messageHandlers.t.postMessage(c)}s();setInterval(s,200);new MutationObserver(s).observe(document.documentElement,{attributes:true,childList:true,subtree:true})})()"
+              c.userContentController.addUserScript(WKUserScript(source:j,injectionTime:.atDocumentEnd,forMainFrameOnly:false))
+              wv=WKWebView(frame:.zero,configuration:c)
+              wv.translatesAutoresizingMaskIntoConstraints=false
+              wv.customUserAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
+              view.addSubview(wv)
+              NSLayoutConstraint.activate([wv.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor),wv.leadingAnchor.constraint(equalTo:view.leadingAnchor),wv.trailingAnchor.constraint(equalTo:view.trailingAnchor),wv.bottomAnchor.constraint(equalTo:view.bottomAnchor)])
+              wv.load(URLRequest(url:URL(string:"https://gemini.google.com/")!))
+            }
+            func userContentController(_ u:WKUserContentController,didReceive m:WKScriptMessage){
+              if let r=m.body as?String{let p=r.split(separator:",").compactMap{Int($0.trimmingCharacters(in:.whitespaces))}
+              if p.count==3{let R=CGFloat(p[0])/255,G=CGFloat(p[1])/255,B=CGFloat(p[2])/255
+              view.backgroundColor=UIColor(red:R,green:G,blue:B,alpha:1)
+              let l=(0.299*CGFloat(p[0])+0.587*CGFloat(p[1])+0.114*CGFloat(p[2]))/255
+              let d=l<<0.5;if(d!=sb){sb=d;setNeedsStatusBarAppearanceUpdate()}}}
+            }
           }
-          
-          class AppDelegate: UIResponder, UIApplicationDelegate {
-              var window: UIWindow?
-              func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-                  window = UIWindow(frame: UIScreen.main.bounds)
-                  window?.rootViewController = ViewController()
-                  window?.makeKeyAndVisible()
-                  return true
-              }
+          class AD:UIResponder,UIApplicationDelegate{var w:UIWindow?
+            func application(_ a:UIApplication,didFinishLaunchingWithOptions l:[UIApplication.LaunchOptionsKey:Any]?)->Bool{
+              w=UIWindow(frame:UIScreen.main.bounds);w?.rootViewController=VC();w?.makeKeyAndVisible();return true
+            }
           }
-          
-          UIApplicationMain(CommandLine.argc, CommandLine.unsafeArgv, nil, NSStringFromClass(AppDelegate.self))
-          SWIFT
-          
+          UIApplicationMain(CommandLine.argc,CommandLine.unsafeArgv,nil,NSStringFromClass(AD.self))
+          EOF
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 -framework UIKit -framework WebKit -o Payload/GeminiWrapper.app/GeminiWrapper app.swift
-          chmod +x Payload/GeminiWrapper.app/GeminiWrapper
-          
-          cat > Payload/GeminiWrapper.app/Info.plist <<'PLIST'
+          xcrun -sdk iphoneos swiftc -target arm64-apple-ios15.0 -framework UIKit -framework WebKit -o Payload/Gemini.app/Gemini app.swift
+          chmod +x Payload/Gemini.app/Gemini
+          cat > Payload/Gemini.app/Info.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-          <key>CFBundleExecutable</key><string>GeminiWrapper</string>
-          <key>CFBundleIdentifier</key><string>com.gemini.wrapper</string>
+          <plist version="1.0"><dict>
+          <key>CFBundleExecutable</key><string>Gemini</string>
+          <key>CFBundleIdentifier</key><string>com.gemini.app</string>
           <key>CFBundleName</key><string>Gemini</string>
-          <key>CFBundlePackageType</key><string>APPL
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>CFBundleShortVersionString</key><string>1.0</string>
+          <key>CFBundleVersion</key><string>1</string>
+          <key>LSRequiresIPhoneOS</key><true/>
+          <key>MinimumOSVersion</key><string>15.0</string>
+          <key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
+          <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+          <key>UIViewControllerBasedStatusBarAppearance</key><true/>
+          <key>CFBundleIcons</key><dict><key>CFBundlePrimaryIcon</key><dict><key>CFBundleIconFiles</key><array><string>AppIcon60x60</string></array><key>CFBundleIconName</key><string>AppIcon</string></dict></dict>
+          </dict></plist>
+          EOF
+          printf 'APPL????' > Payload/Gemini.app/PkgInfo
+          zip -r Gemini.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gemini-IPA
+          path: Gemini.ipa
